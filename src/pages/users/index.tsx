@@ -13,18 +13,40 @@ import {
   Td,
   Text,
   useBreakpointValue,
+  Spinner,
+  Link,
 } from "@chakra-ui/react";
-import Link from "next/link";
+import NextLink from "next/link";
+import { useState } from "react";
+
+
 import { RiAddLine, RiPencilLine } from "react-icons/ri";
 import { Header } from "../../components/Header";
 import { Pagination } from "../../components/Pagination";
 import { Sidebar } from "../../components/Sidebar";
+import { api } from "../../services/api";
+import { useUsers } from "../../services/hooks/useUsers";
+import { queryClient } from "../../services/queryClient";
 
 export default function UserList() {
+
+  const [page, setPage] = useState(1)
+  const {data, isLoading, isFetching, error} = useUsers(page)
+
   const isWideScreenVersion = useBreakpointValue({
     base: false, //
     lg: true,
   });
+
+  async function handlePrefetchUser(userId: string){
+    await queryClient.prefetchQuery(['user', userId], async () => {
+      const response = await api.get(`users/${userId}`)
+
+      return response.data
+    }, {
+      staleTime: 1000 * 60 * 10 // 10 minutes
+    })
+  }
   return (
     <Flex direction="column" h="100vh">
       <Header />
@@ -35,8 +57,9 @@ export default function UserList() {
           <Flex mb="8" justify="space-between" align="center">
             <Heading size="lg" fontWeight="normal">
               Usuários
+              {!isLoading && isFetching && <Spinner size="sm" color="gray.500" ml="4" />}
             </Heading>
-            <Link href="/users/create" passHref>
+            <NextLink href="/users/create" passHref>
               <Button
                 size="sm"
                 fontSize="sm"
@@ -45,10 +68,21 @@ export default function UserList() {
               >
                 Criar novo
               </Button>
-            </Link>
+            </NextLink>
           </Flex>
 
-          <Table colorScheme="whiteAlpha">
+         {
+           isLoading ? (
+             <Flex justify={"center"}>
+               <Spinner/>
+             </Flex>
+           ) : error ? (
+             <Flex justify={"center"}>
+                <Text>Ocorreu um erro ao carregar os dados!</Text>
+              </Flex>
+           ): (
+          <>
+            <Table colorScheme="whiteAlpha">
             <Thead>
               <Tr>
                 <Th px={["4", "4", "6"]} color="gray.300" width="8">
@@ -60,19 +94,23 @@ export default function UserList() {
               </Tr>
             </Thead>
             <Tbody>
-              <Tr>
+              {
+                data.users.map(user => (
+                  <Tr key={user.id}>
                 <Td px={["4", "4", "6"]}>
                   <Checkbox colorScheme="pink" />
                 </Td>
                 <Td>
                   <Box>
-                    <Text fontWeight="bold">Thiago Silva</Text>
+                    <Link color="purple.400" onMouseEnter={() => handlePrefetchUser(user.id)}>
+                      <Text fontWeight="bold">{user.name}</Text>
+                    </Link>
                     <Text fontSize="sm" color="gray.300">
-                      thiago.silva@hotmail.com
+                      {user.email}
                     </Text>
                   </Box>
                 </Td>
-                {isWideScreenVersion && <Td>24 Mai 1990</Td>}
+                {isWideScreenVersion && <Td>{user.createdAt}</Td>}
                 <Td>
                   {isWideScreenVersion && (
                     <Button
@@ -87,10 +125,16 @@ export default function UserList() {
                   )}
                 </Td>
               </Tr>
+                ))
+              }
             </Tbody>
           </Table>
+          <Pagination totalCountOfRegister={data.totalCount} currentPage={page} onPageChange={setPage}/>
+        </>
+           )
+         }
 
-          <Pagination />
+          
         </Box>
       </Flex>
     </Flex>
