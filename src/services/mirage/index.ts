@@ -11,7 +11,7 @@ export function makeServer(){
 
     const server = createServer({
         serializers: {
-            applications: ActiveModelSerializer
+            application: ActiveModelSerializer
         }, 
         models: {
             user: Model.extend<Partial<User>>({})

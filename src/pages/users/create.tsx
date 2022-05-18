@@ -3,8 +3,6 @@ import {
   Button,
   Divider,
   Flex,
-  FormControl,
-  FormLabel,
   Heading,
   HStack,
   SimpleGrid,
@@ -20,6 +18,8 @@ import { SubmitHandler, useForm } from "react-hook-form";
 import { Input } from "../../components/Form/Input";
 import { useMutation } from "react-query";
 import { api } from "../../services/api";
+import { queryClient } from "../../services/queryClient";
+import { useRouter } from "next/router";
 
 type UserCreateFormData = {
   email: string;
@@ -44,14 +44,25 @@ const createUserFormSchema = yup.object().shape({
 });
 
 export default function CreateUser() {
+
+  const router = useRouter()
+
   const createUser = useMutation(async (user: UserCreateFormData) => {
     const response = await api.post('users', {
-      ...user, 
-      created_at: new Date
+      user : {
+        ...user,
+        created_at: new Date()
+      }
     })
 
     return response.data.user
+  }, {
+    onSuccess: () => {
+      //Aqui eu vou invalidar todos os cache que tenho na aplicação 
+      queryClient.invalidateQueries('users')
+    }
   })
+
   const { register, handleSubmit, formState } = useForm({
     resolver: yupResolver(createUserFormSchema),
   });
@@ -62,6 +73,8 @@ export default function CreateUser() {
     values
   ) => {
    await createUser.mutateAsync(values)
+
+   router.push('/users')
   };
 
   return (
